@@ -1,0 +1,14 @@
+runtime: python310
+service: frontend-prod
+# service: frontend-dev
+
+handlers:
+- url: /
+  static_files: dist/index.html
+  upload: dist/index.html
+  secure: always
+
+- url: /(.*)
+  static_files: dist/\1
+  upload: dist/(.*)
+  secure: always
