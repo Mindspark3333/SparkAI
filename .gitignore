@@ -1,0 +1,17 @@
+# Frontend
+/master-agent-frontend/node_modules/
+/master-agent-frontend/dist/
+/master-agent-frontend/.vite/
+/master-agent-frontend/.env*
+
+# Backend
+/master-agent-backend/__pycache__/
+/master-agent-backend/env/
+/master-agent-backend/venv/
+/master-agent-backend/*.db
+/master-agent-backend/.env
+
+# Common
+.DS_Store
+.vscode/
+*.log
