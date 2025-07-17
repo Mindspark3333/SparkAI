@@ -1,11 +1,11 @@
 runtime: python311
-# service: backend-dev
-service : backend-prod
+service: backend-dev
+# service : backend-prod
 entrypoint: gunicorn -b :$PORT src.main:app
 
 env_variables:
-  DATABASE_URL: 'postgresql+psycopg2://masteragent-user-prod:123456@/masteragent-prod?host=/cloudsql/pure-album-439502-s4:us-central1:master-agent-db-prod'
-#for dev  DATABASE_URL: 'postgresql+psycopg2://masteragent-user-dev:123456@/masteragent-dev?host=/cloudsql/pure-album-439502-s4:us-central1:master-agent-db-dev' 
+  # DATABASE_URL: 'postgresql+psycopg2://masteragent-user-prod:123456@/masteragent-prod?host=/cloudsql/pure-album-439502-s4:us-central1:master-agent-db-prod'
+  DATABASE_URL: 'postgresql+psycopg2://masteragent-user-dev:123456@/masteragent-dev?host=/cloudsql/pure-album-439502-s4:us-central1:master-agent-db-dev' 
 
 handlers:
 - url: /.*

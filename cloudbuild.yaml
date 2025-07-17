@@ -1,0 +1,10 @@
+steps:
+  # Deploy Backend
+  - name: 'gcr.io/cloud-builders/gcloud'
+    dir: 'master-agent-backend'
+    args: ['app', 'deploy', 'app.yaml', '--quiet', '--project=pure-album-439502-s4']
+
+  # Deploy Frontend
+  - name: 'gcr.io/cloud-builders/gcloud'
+    dir: 'master-agent-frontend'
+    args: ['app', 'deploy', 'app.yaml', '--quiet', '--project=pure-album-439502-s4']
