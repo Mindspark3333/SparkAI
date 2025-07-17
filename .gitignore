@@ -16,4 +16,4 @@
 .vscode/
 *.log
 
-key.json
+/key.json
