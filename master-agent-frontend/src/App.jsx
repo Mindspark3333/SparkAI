@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import './App.css'
 
-// const API_BASE_URL = 'https://backend-dev-dot-pure-album-439502-s4.uc.r.appspot.com/api' for dev
+// const API_BASE_URL = 'https://backend-dev-dot-pure-album-439502-s4.uc.r.appspot.com/api' //for dev
 const API_BASE_URL = 'https://backend-prod-dot-pure-album-439502-s4.uc.r.appspot.com/api'  //for prod
 
 function App() {

@@ -1,0 +1,26 @@
+steps:
+  # Deploy Backend
+  - name: 'gcr.io/cloud-builders/gcloud'
+    dir: 'master-agent-backend'
+    args: ['app', 'deploy', 'app.yaml', '--quiet', '--project=pure-album-439502-s4']
+
+  # Deploy Frontend
+  - name: 'node:18'
+    dir: 'master-agent-frontend'
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        pnpm install
+        pnpm run build 
+
+  # Deploy Frontend
+  - name: 'gcr.io/cloud-builders/gcloud'
+    dir: 'master-agent-frontend'
+    args: ['app', 'deploy', 'app.yaml', '--quiet', '--project=pure-album-439502-s4']
+
+# logsBucket: 'gs://master-agent-build-logs-dev'
+logsBucket: 'gs://master-agent-build-logs-prod'
+
+options:
+  logging: GCS_ONLY
