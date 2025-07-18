@@ -8,3 +8,8 @@ steps:
   - name: 'gcr.io/cloud-builders/gcloud'
     dir: 'master-agent-frontend'
     args: ['app', 'deploy', 'app.yaml', '--quiet', '--project=pure-album-439502-s4']
+
+logsBucket: 'gs://master-agent-build-logs-dev'
+
+options:
+  logging: GCS_ONLY
