@@ -1,6 +1,6 @@
 # Frontend
 /master-agent-frontend/node_modules/
-/master-agent-frontend/dist/
+# /master-agent-frontend/dist/
 /master-agent-frontend/.vite/
 /master-agent-frontend/.env*
 
