@@ -95,7 +95,7 @@ function App() {
       const data = await apiCall('/dashboard?user_id=1')
       setDashboard(data)
     } catch (error) {
-      console.error('Failed to load dashboard:', error)
+      console.error('Failed to load dashboard error: ', error)
     }
   }
 
