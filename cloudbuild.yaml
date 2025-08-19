@@ -1,24 +1,28 @@
 steps:
-  # Backend build and deployment
-  - name: "gcr.io/cloud-builders/docker"
-    args: [ "build", "-t", "gcr.io/$PROJECT_ID/master-agent-backend", "./master-agent-backend" ]
-
-  - name: "gcr.io/cloud-builders/docker"
-    args: [ "push", "gcr.io/$PROJECT_ID/master-agent-backend" ]
-
-  # Frontend build
-  - name: "node:18"
-    entrypoint: "bash"
+  # Build frontend
+  - name: 'node:18'
+    entrypoint: 'bash'
     args:
-      - "-c"
+      - '-c'
       - |
         cd master-agent-frontend
         npm install
         npm run build
 
-  # Deploy frontend to GCS bucket
-  - name: "gcr.io/cloud-builders/gsutil"
-    args: [ "cp", "-r", "master-agent-frontend/dist/*", "gs://$PROJECT_ID-frontend/" ]
+  # Deploy frontend to Cloud Storage
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', '-r', 'master-agent-frontend/dist/*', 'gs://your-frontend-bucket/']
 
-images:
-  - "gcr.io/$PROJECT_ID/master-agent-backend"
+  # Build and deploy backend
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'app'
+      - 'deploy'
+      - 'master-agent-backend/app.yaml'
+      - '--quiet'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+timeout: '1200s'
