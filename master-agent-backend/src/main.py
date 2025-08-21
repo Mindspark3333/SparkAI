@@ -7,20 +7,17 @@ import requests
 from datetime import datetime
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
-# Database initialization
 def init_db():
     try:
         conn = sqlite3.connect('master_agent.db')
         cursor = conn.cursor()
         
-        # Create users table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +29,6 @@ def init_db():
             )
         ''')
         
-        # Create research_results table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS research_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +45,6 @@ def init_db():
             )
         ''')
         
-        # Create default user if not exists
         cursor.execute('SELECT COUNT(*) FROM users')
         if cursor.fetchone()[0] == 0:
             cursor.execute('''
@@ -63,7 +58,6 @@ def init_db():
     except Exception as e:
         logger.error(f"Database initialization error: {str(e)}")
 
-# Content extraction service
 class ContentExtractor:
     @staticmethod
     def extract_from_url(url):
@@ -77,7 +71,6 @@ class ContentExtractor:
             content = response.text
             title = "Web Content"
             
-            # Extract title if HTML
             if '<title>' in content:
                 start = content.find('<title>') + 7
                 end = content.find('</title>')
@@ -97,7 +90,6 @@ class ContentExtractor:
                 'success': False
             }
 
-# Gemini AI analyzer
 class GeminiAnalyzer:
     @staticmethod
     def analyze_content(content, title, gemini_api_key):
@@ -161,7 +153,6 @@ class GeminiAnalyzer:
                 'analysis': 'Please check your API key and try again'
             }
 
-# Routes
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({
@@ -182,7 +173,6 @@ def submit_research():
         if not url:
             return jsonify({'error': 'URL is required'}), 400
         
-        # Get user
         conn = sqlite3.connect('master_agent.db')
         cursor = conn.cursor()
         cursor.execute('SELECT id, gemini_api_key FROM users WHERE username = ?', ('default_user',))
@@ -194,17 +184,14 @@ def submit_research():
         
         user_id, gemini_api_key = user
         
-        # Extract content
         extraction_result = ContentExtractor.extract_from_url(url)
         
-        # Analyze with Gemini
         analysis_result = GeminiAnalyzer.analyze_content(
             extraction_result['content'],
             extraction_result['title'],
             gemini_api_key
         )
         
-        # Save to database
         cursor.execute('''
             INSERT INTO research_results 
             (user_id, url, title, content, summary, key_insights, analysis, status)
