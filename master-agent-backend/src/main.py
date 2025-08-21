@@ -1,11 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
-import sqlite3
-import json
-import requests
-from datetime import datetime
-import logging
+import os, sqlite3, json, requests, logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -13,11 +8,16 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
+# Use /tmp for SQLite on App Engine
+DB_PATH = os.getenv("DB_PATH", "/tmp/master_agent.db")
+
+def get_conn():
+    return sqlite3.connect(DB_PATH)
+
 def init_db():
     try:
-        conn = sqlite3.connect('master_agent.db')
+        conn = get_conn()
         cursor = conn.cursor()
-        
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +28,6 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS research_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,273 +43,115 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
-        
         cursor.execute('SELECT COUNT(*) FROM users')
         if cursor.fetchone()[0] == 0:
-            cursor.execute('''
-                INSERT INTO users (username, email) 
-                VALUES ('default_user', 'user@example.com')
-            ''')
-        
+            cursor.execute("INSERT INTO users (username, email) VALUES (?, ?)",
+                           ('default_user', 'user@example.com'))
         conn.commit()
         conn.close()
-        logger.info("Database initialized successfully")
+        logger.info("DB ready at %s", DB_PATH)
     except Exception as e:
-        logger.error(f"Database initialization error: {str(e)}")
+        logger.exception("DB init error")
+
+@app.before_first_request
+def _init():
+    init_db()
 
 class ContentExtractor:
     @staticmethod
     def extract_from_url(url):
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+            headers = {'User-Agent': 'Mozilla/5.0'}
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
-            
             content = response.text
             title = "Web Content"
-            
             if '<title>' in content:
-                start = content.find('<title>') + 7
-                end = content.find('</title>')
+                start, end = content.find('<title>')+7, content.find('</title>')
                 if end > start:
                     title = content[start:end].strip()
-            
-            return {
-                'title': title,
-                'content': content[:5000],
-                'success': True
-            }
+            return {'title': title, 'content': content[:5000], 'success': True}
         except Exception as e:
-            logger.error(f"Error extracting content from {url}: {str(e)}")
-            return {
-                'title': 'Error',
-                'content': f"Failed to extract content: {str(e)}",
-                'success': False
-            }
+            return {'title': 'Error', 'content': f"Failed: {e}", 'success': False}
 
 class GeminiAnalyzer:
     @staticmethod
     def analyze_content(content, title, gemini_api_key):
         try:
             if not gemini_api_key:
-                return {
-                    'summary': 'No API key provided',
-                    'key_insights': 'Please configure your Gemini API key',
-                    'analysis': 'API key required for analysis'
-                }
-            
+                return {'summary': 'No API key', 'key_insights': 'Need key', 'analysis': 'Missing key'}
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={gemini_api_key}"
-            
-            prompt = f"""
-            Analyze the following content and provide:
-            1. A concise summary (2-3 sentences)
-            2. Key insights (3-5 bullet points)
-            3. Detailed analysis (1-2 paragraphs)
-            
+            prompt = f"""Analyze content:
             Title: {title}
-            Content: {content[:3000]}
-            
-            Format your response as JSON with keys: summary, key_insights, analysis
-            """
-            
-            payload = {
-                "contents": [{
-                    "parts": [{"text": prompt}]
-                }]
-            }
-            
-            response = requests.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            
-            result = response.json()
-            
-            if 'candidates' in result and len(result['candidates']) > 0:
+            Content: {content[:3000]}"""
+            payload = {"contents":[{"parts":[{"text":prompt}]}]}
+            r = requests.post(url, json=payload, timeout=30)
+            r.raise_for_status()
+            result = r.json()
+            if 'candidates' in result and result['candidates']:
                 text = result['candidates'][0]['content']['parts'][0]['text']
-                
                 try:
-                    parsed = json.loads(text)
-                    return parsed
+                    return json.loads(text)
                 except:
-                    return {
-                        'summary': text[:200] + '...' if len(text) > 200 else text,
-                        'key_insights': 'Analysis completed successfully',
-                        'analysis': text
-                    }
-            else:
-                return {
-                    'summary': 'Analysis completed',
-                    'key_insights': 'Content processed successfully',
-                    'analysis': 'Gemini analysis completed'
-                }
-                
+                    return {'summary': text[:200], 'key_insights': 'ok', 'analysis': text}
+            return {'summary': 'done', 'key_insights': 'ok', 'analysis': 'done'}
         except Exception as e:
-            logger.error(f"Error analyzing content with Gemini: {str(e)}")
-            return {
-                'summary': f'Analysis error: {str(e)}',
-                'key_insights': 'Failed to analyze content',
-                'analysis': 'Please check your API key and try again'
-            }
+            return {'summary': f'Error: {e}', 'key_insights': 'fail', 'analysis': 'check key'}
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def home():
-    return jsonify({
-        'message': 'Master Agent Backend API',
-        'version': '2.0',
-        'status': 'running',
-        'environment': 'development'
-    })
+    return jsonify({'message':'Master Agent Backend','status':'running'})
 
 @app.route('/api/research/submit', methods=['POST'])
 def submit_research():
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No JSON data provided'}), 400
-            
         url = data.get('url')
-        if not url:
-            return jsonify({'error': 'URL is required'}), 400
-        
-        conn = sqlite3.connect('master_agent.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT id, gemini_api_key FROM users WHERE username = ?', ('default_user',))
-        user = cursor.fetchone()
-        
-        if not user:
-            conn.close()
-            return jsonify({'error': 'User not found'}), 404
-        
-        user_id, gemini_api_key = user
-        
-        extraction_result = ContentExtractor.extract_from_url(url)
-        
-        analysis_result = GeminiAnalyzer.analyze_content(
-            extraction_result['content'],
-            extraction_result['title'],
-            gemini_api_key
-        )
-        
-        cursor.execute('''
-            INSERT INTO research_results 
-            (user_id, url, title, content, summary, key_insights, analysis, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            user_id,
-            url,
-            extraction_result['title'],
-            extraction_result['content'],
-            analysis_result['summary'],
-            analysis_result['key_insights'],
-            analysis_result['analysis'],
-            'completed'
-        ))
-        
-        research_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            'id': research_id,
-            'message': 'Research submitted successfully',
-            'status': 'completed',
-            'title': extraction_result['title'],
-            'summary': analysis_result['summary']
-        })
-        
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute("SELECT id, gemini_api_key FROM users WHERE username=?", ('default_user',))
+        user = c.fetchone()
+        if not user: return jsonify({'error':'user not found'}),404
+        uid, key = user
+        ext = ContentExtractor.extract_from_url(url)
+        ana = GeminiAnalyzer.analyze_content(ext['content'], ext['title'], key)
+        c.execute('''INSERT INTO research_results
+                     (user_id,url,title,content,summary,key_insights,analysis,status)
+                     VALUES (?,?,?,?,?,?,?,?)''',
+                     (uid,url,ext['title'],ext['content'],
+                      ana['summary'],ana['key_insights'],ana['analysis'],'completed'))
+        rid = c.lastrowid
+        conn.commit(); conn.close()
+        return jsonify({'id':rid,'title':ext['title'],'summary':ana['summary'],'status':'completed'})
     except Exception as e:
-        logger.error(f"Error submitting research: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error':str(e)}),500
 
-@app.route('/api/research/results', methods=['GET'])
+@app.route('/api/research/results')
 def get_research_results():
-    try:
-        conn = sqlite3.connect('master_agent.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT id, url, title, summary, key_insights, analysis, status, created_at
-            FROM research_results
-            ORDER BY created_at DESC
-            LIMIT 50
-        ''')
-        
-        results = []
-        for row in cursor.fetchall():
-            results.append({
-                'id': row[0],
-                'url': row[1],
-                'title': row[2],
-                'summary': row[3],
-                'key_insights': row[4],
-                'analysis': row[5],
-                'status': row[6],
-                'created_at': row[7]
-            })
-        
-        conn.close()
-        return jsonify(results)
-        
-    except Exception as e:
-        logger.error(f"Error getting research results: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+    conn = get_conn(); c = conn.cursor()
+    c.execute("SELECT id,url,title,summary,key_insights,analysis,status,created_at FROM research_results ORDER BY created_at DESC LIMIT 50")
+    rows = c.fetchall(); conn.close()
+    return jsonify([{'id':r[0],'url':r[1],'title':r[2],'summary':r[3],'key_insights':r[4],'analysis':r[5],'status':r[6],'created_at':r[7]} for r in rows])
 
 @app.route('/api/settings/save', methods=['POST'])
 def save_settings():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No JSON data provided'}), 400
-            
-        gemini_api_key = data.get('gemini_api_key')
-        
-        conn = sqlite3.connect('master_agent.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            UPDATE users SET gemini_api_key = ? WHERE username = ?
-        ''', (gemini_api_key, 'default_user'))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'message': 'Settings saved successfully'})
-        
-    except Exception as e:
-        logger.error(f"Error saving settings: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+    d = request.get_json(); key = d.get('gemini_api_key')
+    conn = get_conn(); c = conn.cursor()
+    c.execute("UPDATE users SET gemini_api_key=? WHERE username=?", (key,'default_user'))
+    conn.commit(); conn.close()
+    return jsonify({'message':'saved'})
 
-@app.route('/api/settings', methods=['GET'])
+@app.route('/api/settings')
 def get_settings():
-    try:
-        conn = sqlite3.connect('master_agent.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT gemini_api_key FROM users WHERE username = ?', ('default_user',))
-        result = cursor.fetchone()
-        
-        conn.close()
-        
-        return jsonify({
-            'gemini_api_key': result[0] if result and result[0] else '',
-            'google_calendar_connected': False
-        })
-        
-    except Exception as e:
-        logger.error(f"Error getting settings: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+    conn = get_conn(); c = conn.cursor()
+    c.execute("SELECT gemini_api_key FROM users WHERE username=?", ('default_user',))
+    r = c.fetchone(); conn.close()
+    return jsonify({'gemini_api_key': r[0] if r else '', 'google_calendar_connected': False})
 
-@app.route('/api/calendar/events', methods=['GET'])
-def get_calendar_events():
-    return jsonify([])
+@app.route('/api/calendar/events')
+def get_calendar_events(): return jsonify([])
 
 @app.route('/api/calendar/create', methods=['POST'])
-def create_calendar_event():
-    data = request.get_json()
-    return jsonify({'message': 'Calendar event created', 'id': 'placeholder'})
+def create_calendar_event(): return jsonify({'message':'created','id':'placeholder'})
 
-if __name__ == '__main__':
-    init_db()
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=True)
+# no app.run() -> Gunicorn handles it
