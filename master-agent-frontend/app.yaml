@@ -1,14 +1,26 @@
-runtime: python310
-service: frontend-prod
-# service: frontend-dev
+runtime: python39
+service: frontend-dev
 
 handlers:
-- url: /
+- url: /static
+  static_dir: dist/assets
+  secure: always
+
+- url: /(.*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))$
+  static_files: dist/\1
+  upload: dist/.*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$
+  secure: always
+
+- url: /.*
   static_files: dist/index.html
   upload: dist/index.html
   secure: always
 
-- url: /(.*)
-  static_files: dist/\1
-  upload: dist/(.*)
-  secure: always
+automatic_scaling:
+  min_instances: 0
+  max_instances: 5
+
+resources:
+  cpu: 1
+  memory_gb: 0.5
+
