@@ -9,20 +9,20 @@ steps:
         npm install
         npm run build
         
-  # Deploy frontend service
+  # Deploy frontend service to dev
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'app'
       - 'deploy'
-      - 'master-agent-frontend/app.yaml'
+      - 'master-agent-frontend/app-dev.yaml'
       - '--quiet'
         
-  # Deploy backend service
+  # Deploy backend service to dev
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'app'
       - 'deploy'
-      - 'master-agent-backend/app.yaml'
+      - 'master-agent-backend/app-dev.yaml'
       - '--quiet'
 
 options:
