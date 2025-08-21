@@ -1,16 +1,16 @@
-runtime: python311
+runtime: python39
 service: backend-dev
-# service : backend-prod
-entrypoint: gunicorn -b :$PORT src.main:app
 
 env_variables:
-  # DATABASE_URL: 'postgresql+psycopg2://masteragent-user-prod:123456@/masteragent-prod?host=/cloudsql/pure-album-439502-s4:us-central1:master-agent-db-prod'
-  DATABASE_URL: 'postgresql+psycopg2://masteragent-user-dev:123456@/masteragent-dev?host=/cloudsql/pure-album-439502-s4:us-central1:master-agent-db-dev' 
-
-handlers:
-- url: /.*
-  script: auto
+  FLASK_ENV: development
 
 automatic_scaling:
-  min_instances: 1
-  max_instances: 10
+  min_instances: 0
+  max_instances: 5
+
+resources:
+  cpu: 1
+  memory_gb: 0.5
+
+entrypoint: gunicorn -b :$PORT main:app
+
