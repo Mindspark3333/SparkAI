@@ -8,12 +8,8 @@ steps:
         cd master-agent-frontend
         npm install
         npm run build
-
-  # Deploy frontend to Cloud Storage
-  - name: 'gcr.io/cloud-builders/gsutil'
-    args: ['cp', '-r', 'master-agent-frontend/dist/*', 'gs://your-frontend-bucket/']
-
-  # Build and deploy backend
+        
+  # Deploy backend
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'app'
@@ -23,6 +19,5 @@ steps:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_HIGHCPU_8'
 
 timeout: '1200s'
