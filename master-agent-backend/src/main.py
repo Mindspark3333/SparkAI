@@ -16,48 +16,52 @@ CORS(app)
 
 # Database initialization
 def init_db():
-    conn = sqlite3.connect('master_agent.db')
-    cursor = conn.cursor()
-    
-    # Create users table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT,
-            gemini_api_key TEXT,
-            google_calendar_token TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Create research_results table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS research_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            url TEXT NOT NULL,
-            title TEXT,
-            content TEXT,
-            summary TEXT,
-            key_insights TEXT,
-            analysis TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    
-    # Create default user if not exists
-    cursor.execute('SELECT COUNT(*) FROM users')
-    if cursor.fetchone()[0] == 0:
+    try:
+        conn = sqlite3.connect('master_agent.db')
+        cursor = conn.cursor()
+        
+        # Create users table
         cursor.execute('''
-            INSERT INTO users (username, email) 
-            VALUES ('default_user', 'user@example.com')
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT,
+                gemini_api_key TEXT,
+                google_calendar_token TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         ''')
-    
-    conn.commit()
-    conn.close()
+        
+        # Create research_results table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS research_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                url TEXT NOT NULL,
+                title TEXT,
+                content TEXT,
+                summary TEXT,
+                key_insights TEXT,
+                analysis TEXT,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        # Create default user if not exists
+        cursor.execute('SELECT COUNT(*) FROM users')
+        if cursor.fetchone()[0] == 0:
+            cursor.execute('''
+                INSERT INTO users (username, email) 
+                VALUES ('default_user', 'user@example.com')
+            ''')
+        
+        conn.commit()
+        conn.close()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization error: {str(e)}")
 
 # Content extraction service
 class ContentExtractor:
@@ -70,7 +74,6 @@ class ContentExtractor:
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             
-            # Simple text extraction (you can enhance this with BeautifulSoup)
             content = response.text
             title = "Web Content"
             
@@ -83,7 +86,7 @@ class ContentExtractor:
             
             return {
                 'title': title,
-                'content': content[:5000],  # Limit content length
+                'content': content[:5000],
                 'success': True
             }
         except Exception as e:
@@ -106,7 +109,6 @@ class GeminiAnalyzer:
                     'analysis': 'API key required for analysis'
                 }
             
-            # Gemini API call
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={gemini_api_key}"
             
             prompt = f"""
@@ -135,7 +137,6 @@ class GeminiAnalyzer:
             if 'candidates' in result and len(result['candidates']) > 0:
                 text = result['candidates'][0]['content']['parts'][0]['text']
                 
-                # Try to parse as JSON, fallback to simple parsing
                 try:
                     parsed = json.loads(text)
                     return parsed
@@ -166,25 +167,29 @@ def home():
     return jsonify({
         'message': 'Master Agent Backend API',
         'version': '2.0',
-        'status': 'running'
+        'status': 'running',
+        'environment': 'development'
     })
 
 @app.route('/api/research/submit', methods=['POST'])
 def submit_research():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+            
         url = data.get('url')
-        
         if not url:
             return jsonify({'error': 'URL is required'}), 400
         
-        # Get user (default user for now)
+        # Get user
         conn = sqlite3.connect('master_agent.db')
         cursor = conn.cursor()
         cursor.execute('SELECT id, gemini_api_key FROM users WHERE username = ?', ('default_user',))
         user = cursor.fetchone()
         
         if not user:
+            conn.close()
             return jsonify({'error': 'User not found'}), 404
         
         user_id, gemini_api_key = user
@@ -268,6 +273,9 @@ def get_research_results():
 def save_settings():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+            
         gemini_api_key = data.get('gemini_api_key')
         
         conn = sqlite3.connect('master_agent.db')
@@ -308,16 +316,14 @@ def get_settings():
 
 @app.route('/api/calendar/events', methods=['GET'])
 def get_calendar_events():
-    # Placeholder for calendar integration
     return jsonify([])
 
 @app.route('/api/calendar/create', methods=['POST'])
 def create_calendar_event():
-    # Placeholder for calendar event creation
     data = request.get_json()
     return jsonify({'message': 'Calendar event created', 'id': 'placeholder'})
 
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=True)
