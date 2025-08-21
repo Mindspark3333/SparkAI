@@ -1,8 +1,7 @@
 runtime: python39
 service: backend-dev
 
-env_variables:
-  FLASK_ENV: development
+entrypoint: gunicorn -b :$PORT main:app
 
 automatic_scaling:
   min_instances: 0
@@ -11,5 +10,3 @@ automatic_scaling:
 resources:
   cpu: 1
   memory_gb: 0.5
-
-entrypoint: gunicorn -b :$PORT main:app
