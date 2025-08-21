@@ -14,3 +14,12 @@ handlers:
 automatic_scaling:
   min_instances: 1
   max_instances: 10
+runtime: python310
+service: backend-prod
+
+handlers:
+- url: /.*
+  script: auto
+
+env_variables:
+  FLASK_ENV: production
