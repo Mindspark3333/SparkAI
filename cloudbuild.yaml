@@ -1,23 +1,10 @@
 steps:
-  # Build frontend
-  - name: 'node:18'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        cd master-agent-frontend
-        npm install
-        npm run build
-        
-  # Deploy backend
+  # Deploy Backend Only
   - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - 'app'
-      - 'deploy'
-      - 'master-agent-backend/app.yaml'
-      - '--quiet'
+    dir: 'master-agent-backend'
+    args: ['app', 'deploy', 'app.yaml', '--quiet', '--project=pure-album-439502-s4']
 
+logsBucket: 'gs://master-agent-build-logs-dev'
 options:
-  logging: CLOUD_LOGGING_ONLY
-
-timeout: '1200s'
+  logging: GCS_ONLY
+timeout: '600s'
