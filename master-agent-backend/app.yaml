@@ -1,9 +1,6 @@
 runtime: python39
 service: backend-dev
 
-env_variables:
-  FLASK_ENV: development
-
 automatic_scaling:
   min_instances: 0
   max_instances: 5
