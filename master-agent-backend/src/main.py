@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# --- DB config: SQLite locally, Cloud SQL later ---
+# DB config: SQLite locally, Cloud SQL later
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///app.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
@@ -17,9 +17,7 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, default="")
-    priority = db.Column(db.String(20), default="normal")  # low | normal | high
-    due_date = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), default="open")      # open | in_progress | done
+    status = db.Column(db.String(20), default="open")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -28,9 +26,7 @@ class Task(db.Model):
 class Goal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, default="")
-    target_date = db.Column(db.DateTime, nullable=True)
-    progress = db.Column(db.Integer, default=0)  # 0..100
+    progress = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -39,18 +35,17 @@ class Goal(db.Model):
 class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text, default="")
-    is_voice = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
-# Initialize DB on startup
+# Init DB
 @app.before_first_request
 def init_db():
     db.create_all()
 
-# ----------------- Health -----------------
+# ----------------- Endpoints -----------------
 @app.route("/")
 def home():
     return jsonify({"service": "Master Agent Backend", "status": "running", "version": "phase-1"})
@@ -59,13 +54,11 @@ def home():
 def health():
     return jsonify({"status": "healthy"})
 
-# ----------------- Chat -----------------
 @app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.get_json(silent=True) or {}
     return jsonify({"response": f"You said: {data.get('message','')}"})
 
-# ----------------- Tasks CRUD -----------------
 @app.route("/api/tasks", methods=["GET"])
 def list_tasks():
     return jsonify([t.to_dict() for t in Task.query.all()])
@@ -77,23 +70,6 @@ def create_task():
     db.session.add(t); db.session.commit()
     return jsonify(t.to_dict()), 201
 
-@app.route("/api/tasks/<int:task_id>", methods=["PUT"])
-def update_task(task_id):
-    t = Task.query.get_or_404(task_id)
-    d = request.get_json() or {}
-    t.title = d.get("title", t.title)
-    t.description = d.get("description", t.description)
-    t.status = d.get("status", t.status)
-    db.session.commit()
-    return jsonify(t.to_dict())
-
-@app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
-def delete_task(task_id):
-    t = Task.query.get_or_404(task_id)
-    db.session.delete(t); db.session.commit()
-    return jsonify({"deleted": True})
-
-# ----------------- Goals CRUD -----------------
 @app.route("/api/goals", methods=["GET"])
 def list_goals():
     return jsonify([g.to_dict() for g in Goal.query.all()])
@@ -101,11 +77,10 @@ def list_goals():
 @app.route("/api/goals", methods=["POST"])
 def create_goal():
     d = request.get_json() or {}
-    g = Goal(title=d.get("title","New Goal"), description=d.get("description",""))
+    g = Goal(title=d.get("title","New Goal"), progress=int(d.get("progress",0)))
     db.session.add(g); db.session.commit()
     return jsonify(g.to_dict()), 201
 
-# ----------------- Notes -----------------
 @app.route("/api/notes", methods=["GET"])
 def list_notes():
     return jsonify([n.to_dict() for n in Note.query.all()])
@@ -113,11 +88,10 @@ def list_notes():
 @app.route("/api/notes", methods=["POST"])
 def create_note():
     d = request.get_json() or {}
-    n = Note(text=d.get("text",""), is_voice=False)
+    n = Note(text=d.get("text",""))
     db.session.add(n); db.session.commit()
     return jsonify(n.to_dict()), 201
 
-# ----------------- Dashboard -----------------
 @app.route("/api/dashboard", methods=["GET"])
 def dashboard():
     return jsonify({
@@ -125,4 +99,3 @@ def dashboard():
         "goals": Goal.query.count(),
         "notes": Note.query.count()
     })
-    
