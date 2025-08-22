@@ -1,8 +1,12 @@
 runtime: python39
 service: backend-dev
 
+entrypoint: gunicorn -b :$PORT main:app
+
 automatic_scaling:
   min_instances: 1
   max_instances: 5
 
-entrypoint: gunicorn -b :$PORT main:app
+resources:
+  cpu: 1
+  memory_gb: 0.5
