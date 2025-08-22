@@ -2,7 +2,7 @@ runtime: python39
 service: backend-dev
 
 automatic_scaling:
-  min_instances: 0
+  min_instances: 1
   max_instances: 5
 
 entrypoint: gunicorn -b :$PORT main:app
