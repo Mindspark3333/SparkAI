@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 
-# Force redeploy - version 1.1
+# Fresh backend deployment - clean slate
 app = Flask(__name__)
 CORS(app)
 
@@ -11,7 +11,7 @@ def home():
     return jsonify({
         'message': 'Master Agent Backend API',
         'status': 'running',
-        'version': '1.1'
+        'version': 'fresh-1.0'
     })
 
 @app.route('/health')
@@ -20,7 +20,7 @@ def health():
 
 @app.route('/api/test')
 def test():
-    return jsonify({'message': 'API is working'})
+    return jsonify({'message': 'Fresh API is working'})
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
@@ -31,5 +31,4 @@ def chat():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
-    
 
