@@ -2,7 +2,6 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 
-# Brand new backend - completely fresh start
 app = Flask(__name__)
 CORS(app)
 
@@ -24,11 +23,8 @@ def test():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    data = request.get_json()
+    data = request.get_json() or {}
     message = data.get('message', '')
     return jsonify({'response': f'You said: {message}'})
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
-
+# ❌ No app.run() needed for App Engine, Gunicorn will start it
