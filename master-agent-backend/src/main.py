@@ -125,3 +125,4 @@ def dashboard():
         "goals": Goal.query.count(),
         "notes": Note.query.count()
     })
+    
