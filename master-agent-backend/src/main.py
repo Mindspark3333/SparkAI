@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 
-# Fresh backend deployment - clean slate
+# Brand new backend - completely fresh start
 app = Flask(__name__)
 CORS(app)
 
@@ -11,7 +11,7 @@ def home():
     return jsonify({
         'message': 'Master Agent Backend API',
         'status': 'running',
-        'version': 'fresh-1.0'
+        'version': 'new-1.0'
     })
 
 @app.route('/health')
@@ -20,7 +20,7 @@ def health():
 
 @app.route('/api/test')
 def test():
-    return jsonify({'message': 'Fresh API is working'})
+    return jsonify({'message': 'New backend API is working'})
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
